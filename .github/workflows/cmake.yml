@@ -1,0 +1,57 @@
+name: Qt Test Integration with CMake
+on: 
+  push:
+    branches:
+      - master
+jobs:
+    build:
+        name: Build and Test Qt${{ matrix.qt_ver }}
+        runs-on: ubuntu-latest
+        strategy:
+          fail-fast: false
+          matrix:
+              qt_ver: [5.15.2,6.1.0]
+        steps:
+          - name: Install Qt
+            uses: jurplel/install-qt-action@v2
+            with:
+              version: ${{ matrix.qt_ver }}
+          - name: Git Checkout
+            uses: actions/checkout@v2
+          - name: Create Build Directory
+            shell: pwsh
+            run: |
+              mkdir build
+              cd build
+          - name: Install Linux Dependencies
+            run: |
+              sudo apt-get update -y
+              sudo apt-get install libxcb-icccm4 libxcb-xkb1 libxcb-icccm4 libxcb-image0 libxcb-render-util0 libxcb-randr0 libxcb-keysyms1 libxcb-xinerama0 libxcb-xinput-dev
+          - name: Build
+            shell: pwsh
+            run: |
+              cd build
+              cd ../release
+              cmake -G"Unix Makefiles" -DCMAKE_BUILD_TYPE=RELEASE -DBUILD_TESTING=ON ../
+              cmake --build .
+          - name: Test
+            id: runtests
+            uses: GabrielBB/xvfb-action@v1
+            with:
+              working-directory: ./build
+              run: cmake --build . --target test
+          - name: Prepare Test Report
+            if: ${{ always() && steps.runtests.outcome == 'failure'}}
+            uses: ./ci/processtestresults
+            with:
+                qt-tests: build/TestResults
+                junit-output: build/TestResults/junitresult.xml
+                html-output: build/TestResults/testsreport.html
+          - name: Publish Test Report
+            if: ${{ always() && steps.runtests.outcome == 'failure'}}
+            uses: actions/upload-artifact@v2
+            with:
+                name: TestReport-Qt${{ matrix.qt_ver }}
+                path: |
+                  build/TestResults/*.xml
+                  build/TestResults/testsreport.html
