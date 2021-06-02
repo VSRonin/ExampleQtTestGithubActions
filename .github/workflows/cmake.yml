@@ -1,5 +1,7 @@
 name: Qt Test Integration with CMake
 on: 
+  schedule:
+    - cron:  '0 0 1 * *'
   push:
     branches:
       - master
@@ -31,7 +33,6 @@ jobs:
             shell: pwsh
             run: |
               cd build
-              cd ../release
               cmake -G"Unix Makefiles" -DCMAKE_BUILD_TYPE=RELEASE -DBUILD_TESTING=ON ../
               cmake --build .
           - name: Test
